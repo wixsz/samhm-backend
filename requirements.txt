@@ -45,3 +45,4 @@ tokenizers==0.22.1
 safetensors==0.6.2
 torch==2.8.0
 youtube-transcript-api==1.2.4
+psycopg2-binary
