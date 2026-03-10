@@ -1,0 +1,27 @@
+# Virtual environments
+.venv/
+.venv312/
+venv/
+venv312/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Environment variables
+.env
+
+# Logs
+logs/
+*.log
+
+# Database
+*.db
+
+# ML models
+*.safetensors
+*.pt
+*.bin
+
+# macOS
+.DS_Store
