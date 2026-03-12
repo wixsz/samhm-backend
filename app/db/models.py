@@ -97,7 +97,9 @@ class User(TimestampMixin, Base):
 
     role: Mapped["Role"] = relationship(back_populates="users")
     consent_records: Mapped[list["ConsentRecord"]] = relationship(back_populates="user")
-    analysis_requests: Mapped[list["AnalysisRequest"]] = relationship(back_populates="user")
+    analysis_requests: Mapped[list["AnalysisRequest"]] = relationship(
+        back_populates="user"
+    )
     audit_logs: Mapped[list["AuditLog"]] = relationship(back_populates="user")
     report_jobs: Mapped[list["ReportJob"]] = relationship(back_populates="requested_by")
 
@@ -131,7 +133,9 @@ class AnalysisRequest(TimestampMixin, Base):
     text_hash: Mapped[str | None] = mapped_column(String(255))
     text_length: Mapped[int | None] = mapped_column()
     word_count: Mapped[int | None] = mapped_column()
-    status: Mapped[str] = mapped_column(String(20), default=AnalysisStatus.PENDING.value)
+    status: Mapped[str] = mapped_column(
+        String(20), default=AnalysisStatus.PENDING.value
+    )
     submitted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=datetime.utcnow,
@@ -143,7 +147,9 @@ class AnalysisRequest(TimestampMixin, Base):
     request_metadata: Mapped[dict | None] = mapped_column(JSON)
 
     user: Mapped["User"] = relationship(back_populates="analysis_requests")
-    results: Mapped[list["AnalysisResult"]] = relationship(back_populates="analysis_request")
+    results: Mapped[list["AnalysisResult"]] = relationship(
+        back_populates="analysis_request"
+    )
 
 
 class AnalysisResult(TimestampMixin, Base):
@@ -172,8 +178,12 @@ class KpiSnapshot(TimestampMixin, Base):
     metric_name: Mapped[str] = mapped_column(String(100), nullable=False)
     metric_value: Mapped[float] = mapped_column(Float, nullable=False)
     metric_unit: Mapped[str | None] = mapped_column(String(25))
-    window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    window_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    window_start: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    window_end: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     breakdown: Mapped[dict | None] = mapped_column(JSON)
     snapshot_metadata: Mapped[dict | None] = mapped_column(JSON)
 

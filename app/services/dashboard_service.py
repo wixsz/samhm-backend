@@ -82,7 +82,10 @@ def build_dashboard_summary(
 
     total_analyses = len(rows)
     avg_confidence = (
-        round(sum(item["confidence"] for item in recent_analyses) / len(recent_analyses), 4)
+        round(
+            sum(item["confidence"] for item in recent_analyses) / len(recent_analyses),
+            4,
+        )
         if recent_analyses
         else 0.0
     )

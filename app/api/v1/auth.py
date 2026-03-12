@@ -32,7 +32,9 @@ def register_user(
     email = payload.email.strip().lower()
     full_name = payload.full_name.strip()
 
-    existing_user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
+    existing_user = db.execute(
+        select(User).where(User.email == email)
+    ).scalar_one_or_none()
     if existing_user is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

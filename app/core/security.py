@@ -107,7 +107,9 @@ def get_current_user(
             detail="Invalid authentication credentials",
         )
 
-    user = db.execute(select(User).where(User.email == email.lower())).scalar_one_or_none()
+    user = db.execute(
+        select(User).where(User.email == email.lower())
+    ).scalar_one_or_none()
 
     if user is None or not user.is_active:
         security_log(event="inactive_or_missing_user", user=email)

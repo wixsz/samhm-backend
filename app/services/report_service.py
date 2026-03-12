@@ -10,7 +10,14 @@ import textwrap
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.db.models import AnalysisRequest, AnalysisResult, AuditLog, ReportJob, ReportStatus, User
+from app.db.models import (
+    AnalysisRequest,
+    AnalysisResult,
+    AuditLog,
+    ReportJob,
+    ReportStatus,
+    User,
+)
 from app.services.dashboard_service import build_dashboard_summary
 
 SUPPORTED_REPORT_FORMATS = {"csv", "pdf"}
@@ -69,9 +76,13 @@ def _apply_user_scope_to_request_query(base_query, user_scope: str):
 
 def _apply_user_scope_to_audit_query(base_query, user_scope: str):
     if user_scope == "admins_only":
-        return base_query.join(User, User.id == AuditLog.user_id).where(User.role.has(name="admin"))
+        return base_query.join(User, User.id == AuditLog.user_id).where(
+            User.role.has(name="admin")
+        )
     if user_scope == "non_admins_only":
-        return base_query.join(User, User.id == AuditLog.user_id).where(~User.role.has(name="admin"))
+        return base_query.join(User, User.id == AuditLog.user_id).where(
+            ~User.role.has(name="admin")
+        )
     return base_query
 
 
@@ -128,11 +139,15 @@ def _wrap_pdf_line(value: str, *, width: int = 88) -> list[str]:
     clean = value.strip()
     if not clean:
         return [""]
-    return textwrap.wrap(clean, width=width, break_long_words=True, break_on_hyphens=False) or [clean]
+    return textwrap.wrap(
+        clean, width=width, break_long_words=True, break_on_hyphens=False
+    ) or [clean]
 
 
 def _render_pdf_document(title: str, lines: list[str]) -> bytes:
-    wrapped_lines = [title, ""] + [segment for line in lines for segment in _wrap_pdf_line(line)]
+    wrapped_lines = [title, ""] + [
+        segment for line in lines for segment in _wrap_pdf_line(line)
+    ]
     body_lines_per_page = 42
     pages = [
         wrapped_lines[index : index + body_lines_per_page]
@@ -177,7 +192,11 @@ def _render_pdf_document(title: str, lines: list[str]) -> bytes:
         objects.append(content_object)
 
     kids = " ".join(f"{object_id} 0 R" for object_id in page_object_ids)
-    objects[1] = f"<< /Type /Pages /Kids [{kids}] /Count {len(page_object_ids)} >>".encode("ascii")
+    objects[1] = (
+        f"<< /Type /Pages /Kids [{kids}] /Count {len(page_object_ids)} >>".encode(
+            "ascii"
+        )
+    )
     objects.append(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
 
     output = bytearray(b"%PDF-1.4\n")
@@ -226,7 +245,11 @@ def _fetch_window_requests(
     user_scope: str,
 ):
     query = select(AnalysisRequest).where(AnalysisRequest.submitted_at >= window_start)
-    return db.execute(_apply_user_scope_to_request_query(query, user_scope)).scalars().all()
+    return (
+        db.execute(_apply_user_scope_to_request_query(query, user_scope))
+        .scalars()
+        .all()
+    )
 
 
 def _fetch_audit_failures(
@@ -239,7 +262,9 @@ def _fetch_audit_failures(
         AuditLog.occurred_at >= window_start,
         AuditLog.outcome != "success",
     )
-    return db.execute(_apply_user_scope_to_audit_query(query, user_scope)).scalars().all()
+    return (
+        db.execute(_apply_user_scope_to_audit_query(query, user_scope)).scalars().all()
+    )
 
 
 def _count_users_for_scope(db: Session, *, user_scope: str) -> int:
@@ -283,7 +308,9 @@ def _build_raw_export_rows(
 ) -> list[dict]:
     query = (
         select(AnalysisRequest, AnalysisResult)
-        .outerjoin(AnalysisResult, AnalysisResult.analysis_request_id == AnalysisRequest.id)
+        .outerjoin(
+            AnalysisResult, AnalysisResult.analysis_request_id == AnalysisRequest.id
+        )
         .where(AnalysisRequest.submitted_at >= window_start)
         .order_by(AnalysisRequest.submitted_at.desc())
     )
@@ -311,19 +338,27 @@ def _build_raw_export_rows(
                 "input_type": request.input_type or "",
                 "source_platform": request.source_platform or "",
                 "source_reference": source_reference,
-                "message_or_text_length": request.text_length or request.word_count or 0,
+                "message_or_text_length": request.text_length
+                or request.word_count
+                or 0,
                 "word_count": request.word_count or 0,
                 "predicted_emotion": emotion,
                 "sentiment": sentiment,
-                "confidence_score": f"{confidence:.4f}" if confidence is not None else "",
+                "confidence_score": (
+                    f"{confidence:.4f}" if confidence is not None else ""
+                ),
                 "risk_flag": "true" if risk_flag else "false",
                 "system_status": request.status or "unknown",
                 "model_name": request.model_name or "",
                 "model_version": request.model_version or "",
                 "processing_seconds": (
-                    f"{processing_seconds:.3f}" if processing_seconds is not None else ""
+                    f"{processing_seconds:.3f}"
+                    if processing_seconds is not None
+                    else ""
                 ),
-                "completed_at": request.completed_at.isoformat() if request.completed_at else "",
+                "completed_at": (
+                    request.completed_at.isoformat() if request.completed_at else ""
+                ),
             }
         )
 
@@ -346,21 +381,33 @@ def _build_pdf_lines(preview: dict, raw_rows: list[dict]) -> list[str]:
     emotion_counter = Counter(
         row["predicted_emotion"] for row in completed_rows if row["predicted_emotion"]
     )
-    sentiment_counter = Counter(row["sentiment"] for row in completed_rows if row["sentiment"])
+    sentiment_counter = Counter(
+        row["sentiment"] for row in completed_rows if row["sentiment"]
+    )
     input_counter = Counter(row["input_type"] for row in raw_rows if row["input_type"])
-    source_counter = Counter(row["source_platform"] for row in raw_rows if row["source_platform"])
-    status_counter = Counter(row["system_status"] for row in raw_rows if row["system_status"])
+    source_counter = Counter(
+        row["source_platform"] for row in raw_rows if row["source_platform"]
+    )
+    status_counter = Counter(
+        row["system_status"] for row in raw_rows if row["system_status"]
+    )
     user_counter = Counter(row["user_id"] for row in raw_rows if row["user_id"])
-    daily_counter = Counter(row["timestamp"][:10] for row in raw_rows if row["timestamp"])
+    daily_counter = Counter(
+        row["timestamp"][:10] for row in raw_rows if row["timestamp"]
+    )
     risk_daily_counter = Counter(
         row["timestamp"][:10]
         for row in raw_rows
         if row["timestamp"] and row.get("risk_flag") == "true"
     )
 
-    lines.extend(_counter_chart_lines("Emotion distribution (text chart)", emotion_counter))
+    lines.extend(
+        _counter_chart_lines("Emotion distribution (text chart)", emotion_counter)
+    )
     lines.append("")
-    lines.extend(_counter_chart_lines("Sentiment distribution (text chart)", sentiment_counter))
+    lines.extend(
+        _counter_chart_lines("Sentiment distribution (text chart)", sentiment_counter)
+    )
     lines.append("")
     lines.extend(_counter_chart_lines("Input type distribution", input_counter))
     lines.append("")
@@ -370,7 +417,9 @@ def _build_pdf_lines(preview: dict, raw_rows: list[dict]) -> list[str]:
     lines.append("")
     lines.extend(_counter_chart_lines("Analyses over time", daily_counter))
     lines.append("")
-    lines.extend(_counter_chart_lines("High-risk trend (suicidal-related)", risk_daily_counter))
+    lines.extend(
+        _counter_chart_lines("High-risk trend (suicidal-related)", risk_daily_counter)
+    )
 
     lines.append("")
     lines.append("Top users by analyses:")
@@ -413,7 +462,9 @@ def build_report_export(
     )
     basename = preview["download_basename"]
     window_start = preview["generated_at"] - timedelta(days=date_range_days)
-    raw_rows = _build_raw_export_rows(db, window_start=window_start, user_scope=user_scope)
+    raw_rows = _build_raw_export_rows(
+        db, window_start=window_start, user_scope=user_scope
+    )
 
     if report_format == "csv":
         return (
@@ -425,7 +476,9 @@ def build_report_export(
     if report_format == "pdf":
         return (
             f"{basename}.pdf",
-            _render_pdf_document(preview["report_type"], _build_pdf_lines(preview, raw_rows)),
+            _render_pdf_document(
+                preview["report_type"], _build_pdf_lines(preview, raw_rows)
+            ),
             "application/pdf",
             preview,
         )
@@ -443,33 +496,47 @@ def build_dashboard_export(
     summary = build_dashboard_summary(db, days=days)
 
     metrics = [
-        {"key": "total_analyses", "label": "Total Analyses", "value": str(summary["total_analyses"])},
+        {
+            "key": "total_analyses",
+            "label": "Total Analyses",
+            "value": str(summary["total_analyses"]),
+        },
         {
             "key": "average_confidence",
             "label": "Average Confidence",
             "value": f"{summary['average_confidence'] * 100:.1f}%",
         },
-        {"key": "distinct_users", "label": "Distinct Users", "value": str(summary["distinct_users"])},
+        {
+            "key": "distinct_users",
+            "label": "Distinct Users",
+            "value": str(summary["distinct_users"]),
+        },
         {
             "key": "top_sentiment",
             "label": "Top Sentiment",
-            "value": summary["sentiment_distribution"][0]["label"]
-            if summary["sentiment_distribution"]
-            else "none",
+            "value": (
+                summary["sentiment_distribution"][0]["label"]
+                if summary["sentiment_distribution"]
+                else "none"
+            ),
         },
         {
             "key": "top_emotion",
             "label": "Top Emotion",
-            "value": summary["emotion_distribution"][0]["label"]
-            if summary["emotion_distribution"]
-            else "none",
+            "value": (
+                summary["emotion_distribution"][0]["label"]
+                if summary["emotion_distribution"]
+                else "none"
+            ),
         },
         {
             "key": "top_input_type",
             "label": "Top Input Type",
-            "value": summary["input_type_distribution"][0]["label"]
-            if summary["input_type_distribution"]
-            else "none",
+            "value": (
+                summary["input_type_distribution"][0]["label"]
+                if summary["input_type_distribution"]
+                else "none"
+            ),
         },
     ]
     basename = _report_download_basename("admin-dashboard", generated_at)
@@ -497,7 +564,11 @@ def build_dashboard_export(
                 for item in summary["recent_analyses"][:8]
             ],
         ]
-        return f"{basename}.pdf", _render_pdf_document("Admin Dashboard Snapshot", lines), "application/pdf"
+        return (
+            f"{basename}.pdf",
+            _render_pdf_document("Admin Dashboard Snapshot", lines),
+            "application/pdf",
+        )
 
     raise ValueError(f"Unsupported report format: {report_format}")
 
@@ -528,11 +599,21 @@ def build_report_preview(
         user_scope=user_scope,
     )
 
-    sentiment_counter = Counter(result.sentiment_label for _, result in completed_rows if result.sentiment_label)
-    emotion_counter = Counter(result.emotion_label for _, result in completed_rows if result.emotion_label)
-    input_counter = Counter(request.input_type for request in request_rows if request.input_type)
-    platform_counter = Counter(request.source_platform for request in request_rows if request.source_platform)
-    user_activity_counter = Counter(request.user_id for request in request_rows if request.user_id)
+    sentiment_counter = Counter(
+        result.sentiment_label for _, result in completed_rows if result.sentiment_label
+    )
+    emotion_counter = Counter(
+        result.emotion_label for _, result in completed_rows if result.emotion_label
+    )
+    input_counter = Counter(
+        request.input_type for request in request_rows if request.input_type
+    )
+    platform_counter = Counter(
+        request.source_platform for request in request_rows if request.source_platform
+    )
+    user_activity_counter = Counter(
+        request.user_id for request in request_rows if request.user_id
+    )
     daily_counter = Counter(
         request.submitted_at.strftime("%Y-%m-%d")
         for request in request_rows
@@ -546,63 +627,184 @@ def build_report_preview(
     window_count = len(request_rows)
     active_users = len({request.user_id for request in request_rows})
     chat_interactions = input_counter.get("text", 0)
-    failed_analyses = sum(1 for request in request_rows if request.status != "completed")
+    failed_analyses = sum(
+        1 for request in request_rows if request.status != "completed"
+    )
     average_confidence = (
         sum(result.confidence_score for _, result in completed_rows) / completed_count
         if completed_count
         else 0.0
     )
     top_emotion = emotion_counter.most_common(1)[0][0] if emotion_counter else "none"
-    top_sentiment = sentiment_counter.most_common(1)[0][0] if sentiment_counter else "none"
+    top_sentiment = (
+        sentiment_counter.most_common(1)[0][0] if sentiment_counter else "none"
+    )
     high_risk_cases = sum(
         1
         for _, result in completed_rows
-        if (result.emotion_label or "").strip().lower().replace("_", " ").replace("-", " ")
+        if (result.emotion_label or "")
+        .strip()
+        .lower()
+        .replace("_", " ")
+        .replace("-", " ")
         in HIGH_RISK_EMOTIONS
     )
 
     if report_type == "User Activity":
         metrics = [
-            {"key": "total_users", "label": "Total Users", "value": str(_count_users_for_scope(db, user_scope=user_scope))},
-            {"key": "active_users", "label": "Active Users", "value": str(active_users)},
-            {"key": "analyses", "label": "Analyses in Window", "value": str(window_count)},
-            {"key": "chat_interactions", "label": "Chat Interactions (text input)", "value": str(chat_interactions)},
-            {"key": "analyses_per_user", "label": "Analyses per User", "value": _format_counter(user_activity_counter, limit=5)},
-            {"key": "window", "label": "Date Range", "value": f"{date_range_days} days"},
+            {
+                "key": "total_users",
+                "label": "Total Users",
+                "value": str(_count_users_for_scope(db, user_scope=user_scope)),
+            },
+            {
+                "key": "active_users",
+                "label": "Active Users",
+                "value": str(active_users),
+            },
+            {
+                "key": "analyses",
+                "label": "Analyses in Window",
+                "value": str(window_count),
+            },
+            {
+                "key": "chat_interactions",
+                "label": "Chat Interactions (text input)",
+                "value": str(chat_interactions),
+            },
+            {
+                "key": "analyses_per_user",
+                "label": "Analyses per User",
+                "value": _format_counter(user_activity_counter, limit=5),
+            },
+            {
+                "key": "window",
+                "label": "Date Range",
+                "value": f"{date_range_days} days",
+            },
         ]
     elif report_type == "System Performance":
-        trend_text = " | ".join(
-            f"{day}:{count}" for day, count in sorted(daily_counter.items())[-7:]
-        ) or "none"
+        trend_text = (
+            " | ".join(
+                f"{day}:{count}" for day, count in sorted(daily_counter.items())[-7:]
+            )
+            or "none"
+        )
         metrics = [
-            {"key": "processed_requests", "label": "Predictions Processed", "value": str(completed_count)},
-            {"key": "avg_confidence", "label": "Average Confidence", "value": f"{average_confidence * 100:.1f}%"},
-            {"key": "top_model", "label": "Top Model", "value": model_counter.most_common(1)[0][0] if model_counter else "unknown"},
-            {"key": "processing_trend", "label": "Processing Trend (last 7 points)", "value": trend_text},
-            {"key": "high_risk", "label": "High-Risk Cases", "value": str(high_risk_cases)},
-            {"key": "window", "label": "Date Range", "value": f"{date_range_days} days"},
+            {
+                "key": "processed_requests",
+                "label": "Predictions Processed",
+                "value": str(completed_count),
+            },
+            {
+                "key": "avg_confidence",
+                "label": "Average Confidence",
+                "value": f"{average_confidence * 100:.1f}%",
+            },
+            {
+                "key": "top_model",
+                "label": "Top Model",
+                "value": (
+                    model_counter.most_common(1)[0][0] if model_counter else "unknown"
+                ),
+            },
+            {
+                "key": "processing_trend",
+                "label": "Processing Trend (last 7 points)",
+                "value": trend_text,
+            },
+            {
+                "key": "high_risk",
+                "label": "High-Risk Cases",
+                "value": str(high_risk_cases),
+            },
+            {
+                "key": "window",
+                "label": "Date Range",
+                "value": f"{date_range_days} days",
+            },
         ]
     elif report_type == "Error Logs":
-        action_counter = Counter(log.action_type for log in audit_failures if log.action_type)
+        action_counter = Counter(
+            log.action_type for log in audit_failures if log.action_type
+        )
         metrics = [
-            {"key": "failed_analyses", "label": "Failed Analyses", "value": str(failed_analyses)},
-            {"key": "failure_rate", "label": "Failure Rate", "value": f"{((failed_analyses / window_count) * 100 if window_count else 0):.1f}%"},
-            {"key": "audit_failures", "label": "System Error Events", "value": str(len(audit_failures))},
-            {"key": "top_error_action", "label": "Top Error Action", "value": action_counter.most_common(1)[0][0] if action_counter else "none"},
-            {"key": "window", "label": "Date Range", "value": f"{date_range_days} days"},
+            {
+                "key": "failed_analyses",
+                "label": "Failed Analyses",
+                "value": str(failed_analyses),
+            },
+            {
+                "key": "failure_rate",
+                "label": "Failure Rate",
+                "value": f"{((failed_analyses / window_count) * 100 if window_count else 0):.1f}%",
+            },
+            {
+                "key": "audit_failures",
+                "label": "System Error Events",
+                "value": str(len(audit_failures)),
+            },
+            {
+                "key": "top_error_action",
+                "label": "Top Error Action",
+                "value": (
+                    action_counter.most_common(1)[0][0] if action_counter else "none"
+                ),
+            },
+            {
+                "key": "window",
+                "label": "Date Range",
+                "value": f"{date_range_days} days",
+            },
         ]
     else:
         metrics = [
-            {"key": "total_analyses", "label": "Total Analyses", "value": str(completed_count)},
-            {"key": "active_users", "label": "Active Users", "value": str(active_users)},
-            {"key": "avg_confidence", "label": "Average Confidence", "value": f"{average_confidence * 100:.1f}%"},
-            {"key": "dominant_emotion", "label": "Dominant Emotion", "value": top_emotion},
+            {
+                "key": "total_analyses",
+                "label": "Total Analyses",
+                "value": str(completed_count),
+            },
+            {
+                "key": "active_users",
+                "label": "Active Users",
+                "value": str(active_users),
+            },
+            {
+                "key": "avg_confidence",
+                "label": "Average Confidence",
+                "value": f"{average_confidence * 100:.1f}%",
+            },
+            {
+                "key": "dominant_emotion",
+                "label": "Dominant Emotion",
+                "value": top_emotion,
+            },
             {"key": "top_sentiment", "label": "Top Sentiment", "value": top_sentiment},
-            {"key": "sentiment_distribution", "label": "Sentiment Distribution", "value": _format_counter(sentiment_counter)},
-            {"key": "emotion_distribution", "label": "Emotion Distribution", "value": _format_counter(emotion_counter)},
-            {"key": "input_types", "label": "Input Type Mix", "value": _format_counter(input_counter)},
-            {"key": "platform_mix", "label": "Source Platform Mix", "value": _format_counter(platform_counter)},
-            {"key": "high_risk", "label": "High-Risk Cases", "value": str(high_risk_cases)},
+            {
+                "key": "sentiment_distribution",
+                "label": "Sentiment Distribution",
+                "value": _format_counter(sentiment_counter),
+            },
+            {
+                "key": "emotion_distribution",
+                "label": "Emotion Distribution",
+                "value": _format_counter(emotion_counter),
+            },
+            {
+                "key": "input_types",
+                "label": "Input Type Mix",
+                "value": _format_counter(input_counter),
+            },
+            {
+                "key": "platform_mix",
+                "label": "Source Platform Mix",
+                "value": _format_counter(platform_counter),
+            },
+            {
+                "key": "high_risk",
+                "label": "High-Risk Cases",
+                "value": str(high_risk_cases),
+            },
         ]
 
     download_basename = _report_download_basename(report_type, generated_at)

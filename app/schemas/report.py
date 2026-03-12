@@ -22,7 +22,9 @@ class ReportPreview(BaseModel):
 class ReportGenerateRequest(BaseModel):
     report_type: str = Field(..., description="Requested report type.")
     date_range_days: int = Field(30, ge=1, le=365)
-    user_scope: str = Field("all_users", description="all_users, admins_only, non_admins_only")
+    user_scope: str = Field(
+        "all_users", description="all_users, admins_only, non_admins_only"
+    )
     report_format: str = Field("csv", description="Requested output format.")
 
 

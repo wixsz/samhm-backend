@@ -24,7 +24,11 @@ def user_summary(
     current_user: dict = Depends(require_permission("analyze_text")),
 ):
     summary = build_dashboard_summary(db, days=days, user_id=current_user["id"])
-    logger.info("User dashboard summary requested | user=%s days=%s", current_user["email"], days)
+    logger.info(
+        "User dashboard summary requested | user=%s days=%s",
+        current_user["email"],
+        days,
+    )
     return summary
 
 

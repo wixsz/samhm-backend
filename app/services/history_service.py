@@ -42,9 +42,7 @@ def build_history_response(
             preview = "analysis record"
 
         normalized_row_number = (
-            row_number
-            if isinstance(row_number, int) and row_number > 0
-            else None
+            row_number if isinstance(row_number, int) and row_number > 0 else None
         )
         items.append(
             {
@@ -59,13 +57,26 @@ def build_history_response(
                 "row_number": normalized_row_number,
                 "source_reference": request.source_reference,
                 "source_platform": request.source_platform,
-                "batch_id": batch_id if isinstance(batch_id, str) and batch_id.strip() else None,
-                "input_preview": input_preview if isinstance(input_preview, str) and input_preview.strip() else None,
-                "extracted_text_preview": extracted_text_preview
-                if isinstance(extracted_text_preview, str) and extracted_text_preview.strip()
-                else None,
-                "label_scores": label_scores if isinstance(label_scores, dict) else None,
-                "runtime": runtime if isinstance(runtime, str) and runtime.strip() else None,
+                "batch_id": (
+                    batch_id if isinstance(batch_id, str) and batch_id.strip() else None
+                ),
+                "input_preview": (
+                    input_preview
+                    if isinstance(input_preview, str) and input_preview.strip()
+                    else None
+                ),
+                "extracted_text_preview": (
+                    extracted_text_preview
+                    if isinstance(extracted_text_preview, str)
+                    and extracted_text_preview.strip()
+                    else None
+                ),
+                "label_scores": (
+                    label_scores if isinstance(label_scores, dict) else None
+                ),
+                "runtime": (
+                    runtime if isinstance(runtime, str) and runtime.strip() else None
+                ),
             }
         )
 

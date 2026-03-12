@@ -238,9 +238,11 @@ def list_report_jobs(
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_permission("view_metrics")),
 ):
-    jobs = db.execute(
-        select(ReportJob).order_by(ReportJob.created_at.desc()).limit(limit)
-    ).scalars().all()
+    jobs = (
+        db.execute(select(ReportJob).order_by(ReportJob.created_at.desc()).limit(limit))
+        .scalars()
+        .all()
+    )
 
     return ReportJobListResponse(
         items=[

@@ -47,7 +47,10 @@ def build_admin_console_response(
 
     total_users = db.scalar(select(func.count()).select_from(User)) or 0
     active_users = (
-        db.scalar(select(func.count()).select_from(User).where(User.is_active.is_(True))) or 0
+        db.scalar(
+            select(func.count()).select_from(User).where(User.is_active.is_(True))
+        )
+        or 0
     )
     inactive_users = total_users - active_users
 
@@ -63,12 +66,16 @@ def build_admin_console_response(
         for role_name, count in role_distribution_rows
     ]
 
-    users = db.execute(
-        select(User)
-        .options(joinedload(User.role))
-        .order_by(User.created_at.desc())
-        .limit(user_limit)
-    ).scalars().all()
+    users = (
+        db.execute(
+            select(User)
+            .options(joinedload(User.role))
+            .order_by(User.created_at.desc())
+            .limit(user_limit)
+        )
+        .scalars()
+        .all()
+    )
     user_items = [
         {
             "id": user.id,
@@ -117,7 +124,9 @@ def build_admin_console_response(
         db.scalar(
             select(func.count())
             .select_from(AuditLog)
-            .where(AuditLog.occurred_at >= last_24h, AuditLog.action_type.like("%upload%"))
+            .where(
+                AuditLog.occurred_at >= last_24h, AuditLog.action_type.like("%upload%")
+            )
         )
         or 0
     )
@@ -125,7 +134,9 @@ def build_admin_console_response(
         db.scalar(
             select(func.count())
             .select_from(AuditLog)
-            .where(AuditLog.occurred_at >= last_24h, AuditLog.action_type.like("%analyze%"))
+            .where(
+                AuditLog.occurred_at >= last_24h, AuditLog.action_type.like("%analyze%")
+            )
         )
         or 0
     )
@@ -154,9 +165,9 @@ def build_admin_console_response(
     )
     average_confidence = (
         db.scalar(
-            select(func.coalesce(func.avg(AnalysisResult.confidence_score), 0.0)).select_from(
-                AnalysisResult
-            )
+            select(
+                func.coalesce(func.avg(AnalysisResult.confidence_score), 0.0)
+            ).select_from(AnalysisResult)
         )
         or 0.0
     )
@@ -224,7 +235,9 @@ def build_admin_console_response(
         }
         for scope, granted_count, revoked_count in consent_rows
     ]
-    total_consent_records = db.scalar(select(func.count()).select_from(ConsentRecord)) or 0
+    total_consent_records = (
+        db.scalar(select(func.count()).select_from(ConsentRecord)) or 0
+    )
     exports_generated = (
         db.scalar(
             select(func.count())
@@ -243,16 +256,18 @@ def build_admin_console_response(
     )
 
     current_admin = db.execute(
-        select(User)
-        .options(joinedload(User.role))
-        .where(User.id == current_user_id)
+        select(User).options(joinedload(User.role)).where(User.id == current_user_id)
     ).scalar_one()
-    current_admin_logs = db.execute(
-        select(AuditLog)
-        .where(AuditLog.user_id == current_user_id)
-        .order_by(AuditLog.occurred_at.desc())
-        .limit(8)
-    ).scalars().all()
+    current_admin_logs = (
+        db.execute(
+            select(AuditLog)
+            .where(AuditLog.user_id == current_user_id)
+            .order_by(AuditLog.occurred_at.desc())
+            .limit(8)
+        )
+        .scalars()
+        .all()
+    )
     recent_actions = [
         {
             "id": log.id,

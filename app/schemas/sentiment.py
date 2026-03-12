@@ -90,7 +90,9 @@ class SentimentResponse(BaseModel):
     )
 
     model_name: str = Field(
-        ..., description="Backend model name used for inference.", example="sentiment_service"
+        ...,
+        description="Backend model name used for inference.",
+        example="sentiment_service",
     )
 
     label_scores: dict[str, float] = Field(

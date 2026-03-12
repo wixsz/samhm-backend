@@ -14,7 +14,9 @@ class HistoryItem(BaseModel):
     confidence: float = Field(..., ge=0.0, le=1.0)
     submitted_at: datetime = Field(..., description="Submission timestamp.")
     model_version: str | None = Field(default=None, description="Model version.")
-    row_number: int | None = Field(default=None, ge=1, description="Batch CSV row number when applicable.")
+    row_number: int | None = Field(
+        default=None, ge=1, description="Batch CSV row number when applicable."
+    )
     source_reference: str | None = Field(
         default=None,
         description="Original source reference (for example, link URL or batch file name).",

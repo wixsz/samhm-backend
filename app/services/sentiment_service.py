@@ -139,7 +139,9 @@ class SentimentService:
                 return cls._predict_with_runtime(text, runtime)
             except Exception as exc:
                 cls._load_error = f"model_inference_failed: {exc}"
-                logger.exception("Model inference failed; falling back to baseline rules")
+                logger.exception(
+                    "Model inference failed; falling back to baseline rules"
+                )
 
         return cls._predict_with_rules(text)
 
@@ -334,7 +336,9 @@ class SentimentService:
             return False
 
         has_config = (directory / "config.json").is_file()
-        has_weights = any((directory / name).is_file() for name in HUGGINGFACE_WEIGHT_FILES)
+        has_weights = any(
+            (directory / name).is_file() for name in HUGGINGFACE_WEIGHT_FILES
+        )
         has_tokenizer = any(
             (directory / name).is_file()
             for name in ("tokenizer.json", "tokenizer_config.json", "vocab.txt")
@@ -416,7 +420,9 @@ class SentimentService:
         try:
             import torch
         except ImportError as exc:
-            raise RuntimeError("torch is required to run Hugging Face inference") from exc
+            raise RuntimeError(
+                "torch is required to run Hugging Face inference"
+            ) from exc
 
         tokenizer = AutoTokenizer.from_pretrained(str(model_dir), local_files_only=True)
         predictor = AutoModelForSequenceClassification.from_pretrained(
@@ -428,7 +434,9 @@ class SentimentService:
         config = predictor.config
         labels = cls._extract_labels_from_mapping(getattr(config, "id2label", None))
         metadata = cls._load_metadata(model_dir)
-        metadata.setdefault("transformers_model_type", getattr(config, "model_type", None))
+        metadata.setdefault(
+            "transformers_model_type", getattr(config, "model_type", None)
+        )
         metadata.setdefault("num_labels", getattr(config, "num_labels", None))
 
         model_name = (
@@ -512,13 +520,19 @@ class SentimentService:
 
         if isinstance(value, dict):
             if all(str(key).isdigit() for key in value.keys()):
-                return [str(item[1]) for item in sorted(value.items(), key=lambda item: int(item[0]))]
+                return [
+                    str(item[1])
+                    for item in sorted(value.items(), key=lambda item: int(item[0]))
+                ]
 
             if "classes" in value and isinstance(value["classes"], list):
                 return [str(item) for item in value["classes"]]
 
             if all(isinstance(item, str) for item in value.values()):
-                return [str(item[1]) for item in sorted(value.items(), key=lambda item: int(item[0]))]
+                return [
+                    str(item[1])
+                    for item in sorted(value.items(), key=lambda item: int(item[0]))
+                ]
 
         return []
 
@@ -541,7 +555,9 @@ class SentimentService:
         confidence = label_scores.get(resolved_label)
 
         if confidence is None:
-            confidence = cls._estimate_confidence_from_decision_function(runtime, features)
+            confidence = cls._estimate_confidence_from_decision_function(
+                runtime, features
+            )
 
         if confidence is None:
             confidence = 0.75
@@ -586,7 +602,9 @@ class SentimentService:
         try:
             import torch
         except ImportError as exc:
-            raise RuntimeError("torch is required to run Hugging Face inference") from exc
+            raise RuntimeError(
+                "torch is required to run Hugging Face inference"
+            ) from exc
 
         if runtime.tokenizer is None:
             raise RuntimeError("tokenizer not loaded for Hugging Face runtime")
@@ -605,11 +623,12 @@ class SentimentService:
 
         labels = runtime.labels or [str(index) for index in range(len(probabilities))]
         if len(labels) < len(probabilities):
-            labels.extend(str(index) for index in range(len(labels), len(probabilities)))
+            labels.extend(
+                str(index) for index in range(len(labels), len(probabilities))
+            )
 
         label_scores = {
-            str(label): float(score)
-            for label, score in zip(labels, probabilities)
+            str(label): float(score) for label, score in zip(labels, probabilities)
         }
         label_scores = cls._apply_keyword_adjustments(text, label_scores)
         resolved_label = max(label_scores.items(), key=lambda item: item[1])[0]
@@ -683,10 +702,7 @@ class SentimentService:
             adjusted[top_label] = min(adjusted[top_label], top_cap)
 
         total = sum(max(value, 0.0) for value in adjusted.values()) or 1.0
-        return {
-            label: max(value, 0.0) / total
-            for label, value in adjusted.items()
-        }
+        return {label: max(value, 0.0) / total for label, value in adjusted.items()}
 
     @classmethod
     def _resolve_predicted_label(
@@ -779,7 +795,14 @@ class SentimentService:
             explainability={
                 "matched_keywords": [
                     token
-                    for token in ["sad", "depressed", "hopeless", "happy", "great", "excited"]
+                    for token in [
+                        "sad",
+                        "depressed",
+                        "hopeless",
+                        "happy",
+                        "great",
+                        "excited",
+                    ]
                     if token in text_lower
                 ]
             },

@@ -67,6 +67,7 @@ app = FastAPI(
 
 app.state.limiter = limiter
 
+
 # =====================================================
 # Timeout Protection
 # =====================================================
@@ -133,6 +134,7 @@ app.middleware("http")(intrusion_detection_middleware)
 app.middleware("http")(firewall_middleware)
 app.middleware("http")(observability_middleware)
 app.middleware("http")(alerting_middleware)
+
 
 # =====================================================
 # Security Headers (FIXED CSP)
@@ -260,13 +262,21 @@ async def detailed_health_check():
 app.include_router(auth.router, prefix=f"{API_PREFIX}/auth", tags=["Auth"])
 app.include_router(admin.router, prefix=f"{API_PREFIX}/admin", tags=["Admin"])
 app.include_router(users.router, prefix=API_PREFIX)
-app.include_router(sentiment.router, prefix=f"{API_PREFIX}/sentiment", tags=["Sentiment"])
+app.include_router(
+    sentiment.router, prefix=f"{API_PREFIX}/sentiment", tags=["Sentiment"]
+)
 app.include_router(privacy.router, prefix=f"{API_PREFIX}/privacy", tags=["Privacy"])
-app.include_router(security_dashboard.router, prefix=f"{API_PREFIX}/security", tags=["Security"])
-app.include_router(dashboard.router, prefix=f"{API_PREFIX}/dashboard", tags=["Dashboard"])
+app.include_router(
+    security_dashboard.router, prefix=f"{API_PREFIX}/security", tags=["Security"]
+)
+app.include_router(
+    dashboard.router, prefix=f"{API_PREFIX}/dashboard", tags=["Dashboard"]
+)
 app.include_router(history.router, prefix=f"{API_PREFIX}/history", tags=["History"])
 app.include_router(reports.router, prefix=f"{API_PREFIX}/reports", tags=["Reports"])
-app.include_router(monitoring_router, prefix=f"{API_PREFIX}/monitoring", tags=["Monitoring"])
+app.include_router(
+    monitoring_router, prefix=f"{API_PREFIX}/monitoring", tags=["Monitoring"]
+)
 app.include_router(debug_router, prefix=f"{API_PREFIX}/debug", tags=["Debug"])
 
 

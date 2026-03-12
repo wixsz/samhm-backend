@@ -82,13 +82,17 @@ def update_user(
     if payload.full_name is None and payload.role is None and payload.is_active is None:
         raise HTTPException(status_code=400, detail="No updates provided.")
 
-    target_user = db.execute(select(User).where(User.id == user_id)).scalar_one_or_none()
+    target_user = db.execute(
+        select(User).where(User.id == user_id)
+    ).scalar_one_or_none()
     if target_user is None:
         raise HTTPException(status_code=404, detail="User not found.")
 
     current_role = _get_role_name(db, target_user.role_id)
     next_role_name = current_role
-    next_is_active = target_user.is_active if payload.is_active is None else payload.is_active
+    next_is_active = (
+        target_user.is_active if payload.is_active is None else payload.is_active
+    )
 
     role_obj = None
     if payload.role is not None:
@@ -96,19 +100,29 @@ def update_user(
         if normalized_role not in ALLOWED_ROLE_NAMES:
             raise HTTPException(status_code=400, detail="Invalid role.")
 
-        role_obj = db.execute(select(Role).where(Role.name == normalized_role)).scalar_one_or_none()
+        role_obj = db.execute(
+            select(Role).where(Role.name == normalized_role)
+        ).scalar_one_or_none()
         if role_obj is None:
-            raise HTTPException(status_code=500, detail=f"Role '{normalized_role}' is not configured.")
+            raise HTTPException(
+                status_code=500, detail=f"Role '{normalized_role}' is not configured."
+            )
         next_role_name = normalized_role
 
     if target_user.id == current_user["id"] and next_is_active is False:
-        raise HTTPException(status_code=400, detail="You cannot deactivate your own account.")
+        raise HTTPException(
+            status_code=400, detail="You cannot deactivate your own account."
+        )
 
     is_removing_admin_privilege = current_role == "admin" and next_role_name != "admin"
-    is_deactivating_admin = current_role == "admin" and target_user.is_active and next_is_active is False
+    is_deactivating_admin = (
+        current_role == "admin" and target_user.is_active and next_is_active is False
+    )
     if is_removing_admin_privilege or is_deactivating_admin:
         if _count_active_admins(db) <= 1:
-            raise HTTPException(status_code=400, detail="At least one active admin is required.")
+            raise HTTPException(
+                status_code=400, detail="At least one active admin is required."
+            )
 
     old_values = {
         "full_name": target_user.full_name,
@@ -118,7 +132,9 @@ def update_user(
 
     if payload.full_name is not None:
         cleaned_name = payload.full_name.strip()
-        target_user.full_name = cleaned_name or (target_user.email.split("@")[0] if target_user.email else "User")
+        target_user.full_name = cleaned_name or (
+            target_user.email.split("@")[0] if target_user.email else "User"
+        )
 
     if role_obj is not None:
         target_user.role_id = role_obj.id
@@ -170,16 +186,26 @@ def remove_user(
     db: Session = Depends(get_db),
     current_user: dict = Depends(require_admin_console_access),
 ):
-    target_user = db.execute(select(User).where(User.id == user_id)).scalar_one_or_none()
+    target_user = db.execute(
+        select(User).where(User.id == user_id)
+    ).scalar_one_or_none()
     if target_user is None:
         raise HTTPException(status_code=404, detail="User not found.")
 
     if target_user.id == current_user["id"]:
-        raise HTTPException(status_code=400, detail="You cannot remove your own account.")
+        raise HTTPException(
+            status_code=400, detail="You cannot remove your own account."
+        )
 
     target_role = _get_role_name(db, target_user.role_id)
-    if target_role == "admin" and target_user.is_active and _count_active_admins(db) <= 1:
-        raise HTTPException(status_code=400, detail="At least one active admin is required.")
+    if (
+        target_role == "admin"
+        and target_user.is_active
+        and _count_active_admins(db) <= 1
+    ):
+        raise HTTPException(
+            status_code=400, detail="At least one active admin is required."
+        )
 
     target_user.is_active = False
 

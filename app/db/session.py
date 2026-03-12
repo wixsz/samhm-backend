@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.db.base import Base
 from app.security.password import get_password_hash
 
+
 def _build_engine_kwargs(database_url: str) -> dict[str, Any]:
     kwargs: dict[str, Any] = {
         "echo": settings.DB_ECHO,

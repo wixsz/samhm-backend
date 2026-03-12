@@ -29,7 +29,11 @@ path_access = defaultdict(lambda: defaultdict(int))
 
 
 def _is_local_dev_request(ip: str) -> bool:
-    return settings.APP_ENV.lower() != "production" and ip in {"127.0.0.1", "::1", "localhost"}
+    return settings.APP_ENV.lower() != "production" and ip in {
+        "127.0.0.1",
+        "::1",
+        "localhost",
+    }
 
 
 # ================================

@@ -12,7 +12,11 @@ blocked_ips = {}
 
 
 def _is_local_dev_request(ip: str) -> bool:
-    return settings.APP_ENV.lower() != "production" and ip in {"127.0.0.1", "::1", "localhost"}
+    return settings.APP_ENV.lower() != "production" and ip in {
+        "127.0.0.1",
+        "::1",
+        "localhost",
+    }
 
 
 async def abuse_guard_middleware(request: Request, call_next):

@@ -228,7 +228,9 @@ def _build_link_preview(url: str, platform: str) -> str:
     )
 
 
-def _fetch_url_text(url: str, *, headers: dict[str, str] | None = None) -> tuple[str, str]:
+def _fetch_url_text(
+    url: str, *, headers: dict[str, str] | None = None
+) -> tuple[str, str]:
     request_headers = {**DEFAULT_BROWSER_HEADERS, **(headers or {})}
     request = UrlRequest(url, headers=request_headers)
     with urlopen(request, timeout=8) as response:
@@ -275,7 +277,9 @@ def _extract_reddit_text(url: str) -> str:
 
     payload_text, _ = _fetch_url_text(
         json_url,
-        headers={"Accept": "application/json,text/html,application/xhtml+xml,*/*;q=0.8"},
+        headers={
+            "Accept": "application/json,text/html,application/xhtml+xml,*/*;q=0.8"
+        },
     )
     payload = json_loads(payload_text)
     if not isinstance(payload, list) or not payload:
@@ -284,9 +288,9 @@ def _extract_reddit_text(url: str) -> str:
     parts: list[str] = []
 
     post_listing = payload[0]
-    post_children = (((post_listing or {}).get("data") or {}).get("children") or [])
+    post_children = ((post_listing or {}).get("data") or {}).get("children") or []
     if post_children:
-        post_data = ((post_children[0] or {}).get("data") or {})
+        post_data = (post_children[0] or {}).get("data") or {}
         parts.extend(
             [
                 str(post_data.get("title") or ""),
@@ -297,7 +301,9 @@ def _extract_reddit_text(url: str) -> str:
 
     if len(payload) > 1:
         comments_listing = payload[1]
-        comment_children = (((comments_listing or {}).get("data") or {}).get("children") or [])
+        comment_children = ((comments_listing or {}).get("data") or {}).get(
+            "children"
+        ) or []
         for child in comment_children[:12]:
             parts.extend(_collect_reddit_comment_bodies(child))
 
@@ -347,7 +353,7 @@ def _collect_reddit_comment_bodies(node: dict) -> list[str]:
 
     replies = data.get("replies")
     if isinstance(replies, dict):
-        reply_children = (((replies or {}).get("data") or {}).get("children") or [])
+        reply_children = ((replies or {}).get("data") or {}).get("children") or []
         for child in reply_children[:8]:
             collected.extend(_collect_reddit_comment_bodies(child))
 
@@ -428,7 +434,9 @@ def _build_caption_candidate_urls(video_id: str, track_list_xml: str) -> list[st
         if name:
             params["name"] = name
 
-        candidate_urls.append(f"https://www.youtube.com/api/timedtext?{urlencode(params)}")
+        candidate_urls.append(
+            f"https://www.youtube.com/api/timedtext?{urlencode(params)}"
+        )
 
     # Deterministic fallbacks when track discovery is limited or blocked.
     fallback_params = [
@@ -442,7 +450,9 @@ def _build_caption_candidate_urls(video_id: str, track_list_xml: str) -> list[st
         if key in seen:
             continue
         seen.add(key)
-        candidate_urls.append(f"https://www.youtube.com/api/timedtext?{urlencode(params)}")
+        candidate_urls.append(
+            f"https://www.youtube.com/api/timedtext?{urlencode(params)}"
+        )
 
     return candidate_urls
 
@@ -452,7 +462,9 @@ def _extract_caption_text(captions_xml: str) -> str:
         return ""
 
     parts: list[str] = []
-    for match in re.finditer(r"<text[^>]*>(.*?)</text>", captions_xml, re.IGNORECASE | re.DOTALL):
+    for match in re.finditer(
+        r"<text[^>]*>(.*?)</text>", captions_xml, re.IGNORECASE | re.DOTALL
+    ):
         segment_html = match.group(1)
         segment_plain = re.sub(r"<[^>]+>", " ", segment_html)
         segment_plain = html_unescape(segment_plain)
@@ -479,9 +491,7 @@ def _extract_caption_text_json3(captions_json: str) -> str:
         if not isinstance(segs, list):
             continue
         line = "".join(
-            str(seg.get("utf8") or "")
-            for seg in segs
-            if isinstance(seg, dict)
+            str(seg.get("utf8") or "") for seg in segs if isinstance(seg, dict)
         )
         if line:
             parts.append(line)
@@ -560,12 +570,16 @@ def _fetch_youtube_transcript(video_id: str) -> str:
         logger.info("YouTube caption track list fetch failed for video_id=%s", video_id)
 
     candidate_urls = _build_caption_candidate_urls(video_id, track_list_xml)
-    watch_url = f"https://www.youtube.com/watch?{urlencode({'v': video_id, 'hl': 'en'})}"
+    watch_url = (
+        f"https://www.youtube.com/watch?{urlencode({'v': video_id, 'hl': 'en'})}"
+    )
     try:
         watch_html, _ = _fetch_url_text(watch_url)
         candidate_urls.extend(_extract_caption_base_urls_from_watch_html(watch_html))
     except Exception:
-        logger.info("YouTube watch-page caption extraction failed for video_id=%s", video_id)
+        logger.info(
+            "YouTube watch-page caption extraction failed for video_id=%s", video_id
+        )
 
     for caption_url in candidate_urls:
         try:
@@ -590,7 +604,9 @@ def _extract_youtube_text(url: str) -> str:
             if transcript:
                 parts.append(transcript)
         except Exception:
-            logger.info("YouTube transcript extraction failed for video_id=%s", video_id)
+            logger.info(
+                "YouTube transcript extraction failed for video_id=%s", video_id
+            )
 
     oembed_url = f"https://www.youtube.com/oembed?url={quote_plus(url)}&format=json"
 
@@ -609,7 +625,9 @@ def _extract_youtube_text(url: str) -> str:
 
     if not parts:
         html, _ = _fetch_url_text(url)
-        title_match = re.search(r"<title>(.*?)</title>", html, re.IGNORECASE | re.DOTALL)
+        title_match = re.search(
+            r"<title>(.*?)</title>", html, re.IGNORECASE | re.DOTALL
+        )
         description_match = re.search(
             r'<meta\s+name="description"\s+content="([^"]+)"',
             html,
@@ -807,7 +825,7 @@ async def batch_upload_sentiment(
 
     reader = DictReader(StringIO(decoded_csv))
     normalized_to_original: dict[str, str] = {}
-    for field in (reader.fieldnames or []):
+    for field in reader.fieldnames or []:
         if not field:
             continue
         normalized = field.strip().lower()
@@ -815,7 +833,11 @@ async def batch_upload_sentiment(
             normalized_to_original[normalized] = field
 
     text_column = next(
-        (normalized_to_original.get(alias) for alias in TEXT_COLUMN_ALIASES if alias in normalized_to_original),
+        (
+            normalized_to_original.get(alias)
+            for alias in TEXT_COLUMN_ALIASES
+            if alias in normalized_to_original
+        ),
         None,
     )
     if not text_column:
@@ -833,7 +855,9 @@ async def batch_upload_sentiment(
     for row_number, row in enumerate(reader, start=2):
         total_rows += 1
         if total_rows > MAX_BATCH_ROWS:
-            raise HTTPException(400, f"CSV exceeds the maximum of {MAX_BATCH_ROWS} rows.")
+            raise HTTPException(
+                400, f"CSV exceeds the maximum of {MAX_BATCH_ROWS} rows."
+            )
 
         text = (row.get(text_column) or "").strip()
         if not text:
