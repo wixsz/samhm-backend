@@ -1,5 +1,5 @@
 # =====================================================
-# Stable Debian Base (NO ALPINE)
+# Stable Debian Base
 # =====================================================
 FROM python:3.11-slim
 
@@ -7,15 +7,16 @@ FROM python:3.11-slim
 # Environment
 # =====================================================
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PYTHONUNBUFFERED=1
 
 # =====================================================
-# Install minimal system dependencies
+# Install system dependencies + Git LFS
 # =====================================================
 RUN apt-get update && apt-get install -y \
     curl \
+    git \
+    git-lfs \
+    && git lfs install \
     && rm -rf /var/lib/apt/lists/*
 
 # =====================================================
@@ -24,17 +25,20 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # =====================================================
-# Install Python dependencies first (cache layer)
+# Copy entire repository (INCLUDING .git)
 # =====================================================
-COPY requirements.txt .
+COPY . .
 
+# =====================================================
+# Pull real LFS model files
+# =====================================================
+RUN git lfs pull
+
+# =====================================================
+# Install Python dependencies
+# =====================================================
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt
-
-# =====================================================
-# Copy backend code (INCLUDING AI MODEL)
-# =====================================================
-COPY app ./app
 
 # =====================================================
 # Create logs directory
