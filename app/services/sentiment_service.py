@@ -28,7 +28,7 @@ def download_model_if_missing():
     model_path = Path("app/models/MH_EMOTION_DISTILBERT_7CLASS/model.safetensors")
 
     if model_path.exists():
-        return
+        model_path.unlink()
 
     logger.info("Downloading sentiment model from Google Drive...")
 
