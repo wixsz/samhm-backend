@@ -32,7 +32,6 @@ node_modules
 .DS_Store
 
 # ML / data files
-models/
 data/
 datasets/
 *.pt
@@ -40,3 +39,6 @@ datasets/
 *.bin
 *.pkl
 *.joblib
+
+# IMPORTANT: allow AI model folder
+!app/models/**
