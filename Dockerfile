@@ -12,10 +12,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 # =====================================================
-# Install minimal system dependencies
+# Install system dependencies + Git LFS
 # =====================================================
 RUN apt-get update && apt-get install -y \
     curl \
+    git \
+    git-lfs \
+    && git lfs install \
     && rm -rf /var/lib/apt/lists/*
 
 # =====================================================
@@ -35,6 +38,9 @@ RUN pip install --upgrade pip && \
 # Copy backend code (INCLUDING AI MODEL)
 # =====================================================
 COPY app ./app
+
+# Download model files from Git LFS
+RUN git lfs pull
 
 # =====================================================
 # Create logs directory
