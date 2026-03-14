@@ -32,7 +32,7 @@ def download_model_if_missing():
 
     logger.info("Downloading sentiment model from Google Drive...")
 
-    url = f"https://drive.google.com/uc?id={MODEL_FILE_ID}"
+    url = f"https://drive.google.com/uc?export=download&id={MODEL_FILE_ID}"
 
     model_path.parent.mkdir(parents=True, exist_ok=True)
 
