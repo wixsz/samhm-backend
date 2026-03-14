@@ -17,6 +17,9 @@ HUGGINGFACE_WEIGHT_FILES = ("model.safetensors", "pytorch_model.bin")
 MODEL_METADATA_FILES = ("metadata.json", "model_config.json", "config.json")
 MODEL_LABEL_FILES = ("labels.json", "label_map.json", "classes.json")
 
+# fallback remote model from HuggingFace
+DEFAULT_HF_MODEL_ID = "bhadresh-savani/distilbert-base-uncased-emotion"
+
 NEGATIVE_HINTS = {
     "negative",
     "depression",
@@ -30,6 +33,9 @@ NEGATIVE_HINTS = {
     "suicidal",
     "hopeless",
     "sad",
+    "fear",
+    "anger",
+    "angry",
 }
 POSITIVE_HINTS = {
     "positive",
@@ -42,8 +48,11 @@ POSITIVE_HINTS = {
     "calm",
     "well",
     "wellness",
+    "love",
+    "surprise",
 }
 NEUTRAL_HINTS = {"neutral", "mixed", "uncertain", "other", "unknown", "normal"}
+
 EMOTION_KEYWORD_HINTS = {
     "Depression": [
         "depressed",
@@ -175,6 +184,7 @@ class SentimentService:
             "model_name": runtime.model_name,
             "model_version": runtime.model_version,
             "model_path": cls._relative_model_path(runtime.model_path),
+            "runtime_kind": runtime.runtime_kind,
         }
 
     @classmethod
@@ -182,10 +192,11 @@ class SentimentService:
         status = cls.get_runtime_status()
         if status["status"] == "loaded":
             logger.info(
-                "Sentiment model loaded | name=%s version=%s path=%s",
+                "Sentiment model loaded | name=%s version=%s path=%s runtime=%s",
                 status["model_name"],
                 status["model_version"],
                 status["model_path"],
+                status.get("runtime_kind"),
             )
             return
 
@@ -230,72 +241,74 @@ class SentimentService:
     def _load_runtime(cls) -> LoadedSentimentModel | None:
         candidate_dirs = cls._candidate_model_dirs()
         model_path = cls._resolve_model_file()
-        if model_path is None:
-            fallback_dir = cls._resolve_optional_path(settings.MODEL_DIR) or (
-                cls._project_root() / "app" / "models"
-            )
-            cls._load_error = (
-                "no serialized model found in "
-                f"{', '.join(str(path) for path in candidate_dirs) or str(fallback_dir)}"
-            )
-            return None
 
-        loaded_object = cls._load_serialized_object(model_path)
-        if isinstance(loaded_object, LoadedSentimentModel):
-            cls.MODEL_NAME = loaded_object.model_name
-            cls.MODEL_VERSION = loaded_object.model_version
+        if model_path is not None:
+            loaded_object = cls._load_serialized_object(model_path)
+            if isinstance(loaded_object, LoadedSentimentModel):
+                cls.MODEL_NAME = loaded_object.model_name
+                cls.MODEL_VERSION = loaded_object.model_version
+                cls._load_error = None
+                return loaded_object
+
+            metadata = cls._load_metadata(model_path)
+            labels = cls._load_labels(model_path, metadata)
+
+            predictor = loaded_object
+            vectorizer = None
+
+            if isinstance(loaded_object, dict):
+                predictor = (
+                    loaded_object.get("pipeline")
+                    or loaded_object.get("model")
+                    or loaded_object.get("classifier")
+                    or loaded_object.get("estimator")
+                    or loaded_object.get("predictor")
+                    or loaded_object
+                )
+                vectorizer = loaded_object.get("vectorizer")
+                if not labels:
+                    labels = cls._extract_labels_from_mapping(loaded_object.get("labels"))
+
+            if not hasattr(predictor, "predict"):
+                raise RuntimeError(
+                    f"serialized model '{model_path.name}' does not expose a predict() method"
+                )
+
+            model_name = (
+                metadata.get("model_name")
+                or getattr(predictor, "model_name", None)
+                or settings.MODEL_NAME
+            )
+            model_version = (
+                metadata.get("model_version")
+                or getattr(predictor, "model_version", None)
+                or settings.MODEL_VERSION_OVERRIDE
+                or model_path.stem
+            )
+
+            cls.MODEL_NAME = str(model_name)
+            cls.MODEL_VERSION = str(model_version)
             cls._load_error = None
-            return loaded_object
 
-        metadata = cls._load_metadata(model_path)
-        labels = cls._load_labels(model_path, metadata)
-
-        predictor = loaded_object
-        vectorizer = None
-
-        if isinstance(loaded_object, dict):
-            predictor = (
-                loaded_object.get("pipeline")
-                or loaded_object.get("model")
-                or loaded_object.get("classifier")
-                or loaded_object.get("estimator")
-                or loaded_object.get("predictor")
-                or loaded_object
-            )
-            vectorizer = loaded_object.get("vectorizer")
-            if not labels:
-                labels = cls._extract_labels_from_mapping(loaded_object.get("labels"))
-
-        if not hasattr(predictor, "predict"):
-            raise RuntimeError(
-                f"serialized model '{model_path.name}' does not expose a predict() method"
+            return LoadedSentimentModel(
+                predictor=predictor,
+                vectorizer=vectorizer,
+                labels=labels,
+                model_name=str(model_name),
+                model_version=str(model_version),
+                model_path=model_path,
+                metadata=metadata,
             )
 
-        model_name = (
-            metadata.get("model_name")
-            or getattr(predictor, "model_name", None)
-            or settings.MODEL_NAME
+        # fallback: download from HuggingFace if no local model exists
+        logger.info(
+            "No local serialized model found. Falling back to HuggingFace download."
         )
-        model_version = (
-            metadata.get("model_version")
-            or getattr(predictor, "model_version", None)
-            or settings.MODEL_VERSION_OVERRIDE
-            or model_path.stem
-        )
-
-        cls.MODEL_NAME = str(model_name)
-        cls.MODEL_VERSION = str(model_version)
+        runtime = cls._load_huggingface_model()
+        cls.MODEL_NAME = runtime.model_name
+        cls.MODEL_VERSION = runtime.model_version
         cls._load_error = None
-
-        return LoadedSentimentModel(
-            predictor=predictor,
-            vectorizer=vectorizer,
-            labels=labels,
-            model_name=str(model_name),
-            model_version=str(model_version),
-            model_path=model_path,
-            metadata=metadata,
-        )
+        return runtime
 
     @classmethod
     def _resolve_model_file(cls) -> Path | None:
@@ -409,47 +422,58 @@ class SentimentService:
             return joblib.load(model_path)
 
     @classmethod
-    def _load_huggingface_model(cls, model_dir: Path) -> LoadedSentimentModel:
+    def _load_huggingface_model(
+        cls,
+        model_dir: Path | None = None,
+    ) -> LoadedSentimentModel:
         try:
             from transformers import AutoModelForSequenceClassification, AutoTokenizer
         except ImportError as exc:
             raise RuntimeError(
-                "transformers is required to load Hugging Face model folders"
+                "transformers is required to load Hugging Face model"
             ) from exc
 
         try:
-            import torch
+            import torch  # noqa: F401
         except ImportError as exc:
             raise RuntimeError(
                 "torch is required to run Hugging Face inference"
             ) from exc
 
-        tokenizer = AutoTokenizer.from_pretrained(str(model_dir), local_files_only=True)
-        predictor = AutoModelForSequenceClassification.from_pretrained(
-            str(model_dir),
-            local_files_only=True,
-        )
+        if model_dir is not None and model_dir.exists():
+            logger.info("Loading local Hugging Face model from %s", model_dir)
+            tokenizer = AutoTokenizer.from_pretrained(str(model_dir), local_files_only=True)
+            predictor = AutoModelForSequenceClassification.from_pretrained(
+                str(model_dir),
+                local_files_only=True,
+            )
+            model_name = model_dir.name
+            model_path = model_dir
+            metadata = cls._load_metadata(model_dir)
+        else:
+            hf_model_id = getattr(settings, "MODEL_NAME", None) or DEFAULT_HF_MODEL_ID
+            logger.info("Downloading sentiment model from HuggingFace: %s", hf_model_id)
+            tokenizer = AutoTokenizer.from_pretrained(hf_model_id)
+            predictor = AutoModelForSequenceClassification.from_pretrained(hf_model_id)
+            model_name = hf_model_id
+            model_path = Path("huggingface_download")
+            metadata = {"source": "huggingface", "model_id": hf_model_id}
+
         predictor.eval()
 
         config = predictor.config
         labels = cls._extract_labels_from_mapping(getattr(config, "id2label", None))
-        metadata = cls._load_metadata(model_dir)
+
         metadata.setdefault(
             "transformers_model_type", getattr(config, "model_type", None)
         )
         metadata.setdefault("num_labels", getattr(config, "num_labels", None))
 
-        model_name = (
-            metadata.get("model_name")
-            or model_dir.name
-            or getattr(config, "_name_or_path", None)
-            or model_dir.name
-        )
         model_version = (
             metadata.get("model_version")
             or getattr(config, "transformers_version", None)
             or settings.MODEL_VERSION_OVERRIDE
-            or model_dir.name
+            or "hf_runtime_v1"
         )
 
         return LoadedSentimentModel(
@@ -458,7 +482,7 @@ class SentimentService:
             labels=labels,
             model_name=str(model_name),
             model_version=str(model_version),
-            model_path=model_dir,
+            model_path=model_path,
             runtime_kind="huggingface_transformers",
             tokenizer=tokenizer,
             metadata=metadata,
@@ -529,10 +553,13 @@ class SentimentService:
                 return [str(item) for item in value["classes"]]
 
             if all(isinstance(item, str) for item in value.values()):
-                return [
-                    str(item[1])
-                    for item in sorted(value.items(), key=lambda item: int(item[0]))
-                ]
+                try:
+                    return [
+                        str(item[1])
+                        for item in sorted(value.items(), key=lambda item: int(item[0]))
+                    ]
+                except ValueError:
+                    return [str(item) for item in value.values()]
 
         return []
 
@@ -632,6 +659,7 @@ class SentimentService:
         }
         label_scores = cls._apply_keyword_adjustments(text, label_scores)
         resolved_label = max(label_scores.items(), key=lambda item: item[1])[0]
+
         metadata = {
             "runtime": runtime.runtime_kind,
             "model_path": cls._relative_model_path(runtime.model_path),
