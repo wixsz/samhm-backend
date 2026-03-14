@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
 from app.core.config import settings
 
 logger = logging.getLogger("SAMHM.SentimentService")
@@ -17,7 +19,6 @@ HUGGINGFACE_WEIGHT_FILES = ("model.safetensors", "pytorch_model.bin")
 MODEL_METADATA_FILES = ("metadata.json", "model_config.json", "config.json")
 MODEL_LABEL_FILES = ("labels.json", "label_map.json", "classes.json")
 
-# fallback remote model from HuggingFace
 DEFAULT_HF_MODEL_ID = "bhadresh-savani/distilbert-base-uncased-emotion"
 
 NEGATIVE_HINTS = {
@@ -300,10 +301,24 @@ class SentimentService:
                 metadata=metadata,
             )
 
-        # fallback: download from HuggingFace if no local model exists
-        logger.info(
-            "No local serialized model found. Falling back to HuggingFace download."
+        local_model = Path(settings.MODEL_DIR) / settings.MODEL_NAME
+
+        if local_model.exists():
+            logger.info("Loading local HuggingFace model from %s", local_model)
+            runtime = cls._load_huggingface_model(local_model)
+            cls.MODEL_NAME = runtime.model_name
+            cls.MODEL_VERSION = runtime.model_version
+            cls._load_error = None
+            return runtime
+
+        searched_dirs = ", ".join(str(path) for path in candidate_dirs) or str(
+            cls._resolve_optional_path(settings.MODEL_DIR) or (cls._project_root() / "app" / "models")
         )
+        logger.info(
+            "No local serialized model found in %s. Falling back to HuggingFace download.",
+            searched_dirs,
+        )
+
         runtime = cls._load_huggingface_model()
         cls.MODEL_NAME = runtime.model_name
         cls.MODEL_VERSION = runtime.model_version
@@ -427,14 +442,7 @@ class SentimentService:
         model_dir: Path | None = None,
     ) -> LoadedSentimentModel:
         try:
-            from transformers import AutoModelForSequenceClassification, AutoTokenizer
-        except ImportError as exc:
-            raise RuntimeError(
-                "transformers is required to load Hugging Face model"
-            ) from exc
-
-        try:
-            import torch  # noqa: F401
+            import torch
         except ImportError as exc:
             raise RuntimeError(
                 "torch is required to run Hugging Face inference"
@@ -451,7 +459,11 @@ class SentimentService:
             model_path = model_dir
             metadata = cls._load_metadata(model_dir)
         else:
-            hf_model_id = getattr(settings, "MODEL_NAME", None) or DEFAULT_HF_MODEL_ID
+            hf_model_id = (
+                getattr(settings, "HF_MODEL_ID", None)
+                or getattr(settings, "MODEL_HF_ID", None)
+                or DEFAULT_HF_MODEL_ID
+            )
             logger.info("Downloading sentiment model from HuggingFace: %s", hf_model_id)
             tokenizer = AutoTokenizer.from_pretrained(hf_model_id)
             predictor = AutoModelForSequenceClassification.from_pretrained(hf_model_id)
