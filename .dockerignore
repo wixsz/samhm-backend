@@ -1,9 +1,42 @@
-__pycache__
+# Python cache
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
-.env
+
+# Virtual environments (VERY IMPORTANT)
+.venv/
+.venv312/
+venv/
+env/
+
+# Git
 .git
 .gitignore
-logs/*
+
+# Environment files
+.env
+
+# Logs
+logs/
+*.log
+
+# Node modules
 node_modules
+
+# IDE
+.idea
+.vscode
+
+# OS
+.DS_Store
+
+# ML / data files
+models/
+data/
+datasets/
+*.pt
+*.pth
+*.bin
+*.pkl
+*.joblib
