@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     MODEL_FILE: str | None = None
     MODEL_METADATA_FILE: str | None = None
     MODEL_LABELS_FILE: str | None = None
-    MODEL_NAME: str = "sentiment_service"
+    MODEL_NAME: str = "MH_EMOTION_DISTILBERT_7CLASS"
     MODEL_VERSION_OVERRIDE: str | None = None
 
     # =====================================================
