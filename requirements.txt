@@ -52,3 +52,6 @@ torch==2.8.0+cpu
 
 # External APIs
 youtube-transcript-api==1.2.4
+
+# Model download
+gdown==5.2.0
