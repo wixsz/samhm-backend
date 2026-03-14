@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     # =====================================================
     # Model Runtime
     # =====================================================
-    MODEL_DIR: str = "app/models"
+    MODEL_DIR: str = "/app/app/models"
     MODEL_FILE: str | None = None
     MODEL_METADATA_FILE: str | None = None
     MODEL_LABELS_FILE: str | None = None
