@@ -8,7 +8,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-import gdown
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 from app.core.config import settings
@@ -21,22 +20,7 @@ MODEL_METADATA_FILES = ("metadata.json", "model_config.json", "config.json")
 MODEL_LABEL_FILES = ("labels.json", "label_map.json", "classes.json")
 
 DEFAULT_HF_MODEL_ID = "omar89090/samhm-distilbert-7class"
-# Google Drive model file ID
-MODEL_FILE_ID = "1fBf-8TGx4G2UmxTgN0GPp4JIe8aYhfCt"
 
-def download_model_if_missing():
-    model_path = Path("app/models/MH_EMOTION_DISTILBERT_7CLASS/model.safetensors")
-
-    if model_path.exists():
-        model_path.unlink()
-
-    logger.info("Downloading sentiment model from Google Drive...")
-
-    url = f"https://drive.google.com/uc?export=download&id={MODEL_FILE_ID}"
-
-    model_path.parent.mkdir(parents=True, exist_ok=True)
-
-    gdown.download(url, str(model_path), quiet=False)
 NEGATIVE_HINTS = {
     "negative",
     "depression",
@@ -319,8 +303,8 @@ class SentimentService:
 
         local_model = Path(settings.MODEL_DIR) / settings.MODEL_NAME
 
-        if local_model.exists():
-            download_model_if_missing()
+        if False and local_model.exists():
+
             logger.info("Loading local HuggingFace model from %s", local_model)
             runtime = cls._load_huggingface_model(local_model)
             cls.MODEL_NAME = runtime.model_name
