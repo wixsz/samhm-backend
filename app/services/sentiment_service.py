@@ -305,7 +305,7 @@ class SentimentService:
 
         if False and local_model.exists():
 
-            logger.info("Loading local HuggingFace model from %s", local_model)
+            logger.iwnfo("Loading local HuggingFace model from %s", local_model)
             runtime = cls._load_huggingface_model(local_model)
             cls.MODEL_NAME = runtime.model_name
             cls.MODEL_VERSION = runtime.model_version
@@ -493,7 +493,7 @@ class SentimentService:
             predictor=predictor,
             vectorizer=None,
             labels=labels,
-            model_name=str(model_name),
+            model_name="MH_EMOTION_DISTILBERT_7CLASS",
             model_version=str(model_version),
             model_path=model_path,
             runtime_kind="huggingface_transformers",
