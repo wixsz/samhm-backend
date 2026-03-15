@@ -18,10 +18,7 @@ logs/
 # Database
 *.db
 
-# ML models
-*.safetensors
-*.pt
-*.bin
+
 
 # macOS
 .DS_Store
