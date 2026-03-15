@@ -20,7 +20,7 @@ HUGGINGFACE_WEIGHT_FILES = ("model.safetensors", "pytorch_model.bin")
 MODEL_METADATA_FILES = ("metadata.json", "model_config.json", "config.json")
 MODEL_LABEL_FILES = ("labels.json", "label_map.json", "classes.json")
 
-DEFAULT_HF_MODEL_ID = "bhadresh-savani/distilbert-base-uncased-emotion"
+DEFAULT_HF_MODEL_ID = "omar89090/samhm-distilbert-7class"
 # Google Drive model file ID
 MODEL_FILE_ID = "1fBf-8TGx4G2UmxTgN0GPp4JIe8aYhfCt"
 
