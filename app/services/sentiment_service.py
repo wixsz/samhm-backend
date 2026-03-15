@@ -142,18 +142,16 @@ class SentimentService:
     _load_error: str | None = None
 
     @classmethod
-    def analyze(cls, text: str) -> SentimentInferenceResult:
+    def analyze_batch(cls, texts: list[str]) -> list[SentimentInferenceResult]:
         runtime = cls._ensure_runtime()
-        if runtime is not None:
-            try:
-                return cls._predict_with_runtime(text, runtime)
-            except Exception as exc:
-                cls._load_error = f"model_inference_failed: {exc}"
-                logger.exception(
-                    "Model inference failed; falling back to baseline rules"
-                )
 
-        return cls._predict_with_rules(text)
+        if runtime is None:
+            return [cls._predict_with_rules(text) for text in texts]
+
+        if runtime.runtime_kind == "huggingface_transformers":
+            return cls._predict_batch_huggingface(texts, runtime)
+
+        return [cls._predict_with_runtime(text, runtime) for text in texts]
 
     @classmethod
     def get_model_name(cls) -> str:
@@ -685,21 +683,57 @@ class SentimentService:
             reverse=True,
         )[:3]
 
-        return SentimentInferenceResult(
-            sentiment=cls.map_label_to_sentiment(resolved_label),
-            confidence=max(0.0, min(float(label_scores[resolved_label]), 1.0)),
-            raw_label=resolved_label,
-            model_name=runtime.model_name,
-            model_version=runtime.model_version,
-            label_scores=label_scores,
-            metadata=metadata,
-            explainability={
-                "top_scores": [
-                    {"label": label, "score": round(score, 6)}
-                    for label, score in top_scores
-                ]
-            },
+    @classmethod
+    def _predict_batch_huggingface(
+        cls,
+        texts: list[str],
+        runtime: LoadedSentimentModel,
+    ) -> list[SentimentInferenceResult]:
+
+        import torch
+
+        tokenizer = runtime.tokenizer
+        model = runtime.predictor
+
+        encoded = tokenizer(
+            texts,
+            return_tensors="pt",
+            truncation=True,
+            padding=True,
+            max_length=512,
         )
+
+        with torch.no_grad():
+            outputs = model(**encoded)
+            probs = torch.softmax(outputs.logits, dim=-1).tolist()
+
+        labels = runtime.labels or [str(i) for i in range(len(probs[0]))]
+
+        results = []
+
+        for text, probabilities in zip(texts, probs):
+
+            label_scores = {
+                str(label): float(score)
+                for label, score in zip(labels, probabilities)
+            }
+
+            resolved_label = max(label_scores.items(), key=lambda x: x[1])[0]
+
+            results.append(
+                SentimentInferenceResult(
+                    sentiment=cls.map_label_to_sentiment(resolved_label),
+                    confidence=float(label_scores[resolved_label]),
+                    raw_label=resolved_label,
+                    model_name=runtime.model_name,
+                    model_version=runtime.model_version,
+                    label_scores=label_scores,
+                    metadata={"runtime": "batch_huggingface"},
+                )
+            )
+
+        return results
+    
 
     @classmethod
     def _apply_keyword_adjustments(

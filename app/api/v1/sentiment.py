@@ -840,6 +840,7 @@ async def batch_upload_sentiment(
         ),
         None,
     )
+
     if not text_column:
         raise HTTPException(
             400,
@@ -852,43 +853,64 @@ async def batch_upload_sentiment(
     failed_rows = 0
     created_analysis_ids: list[str] = []
 
+    texts: list[str] = []
+    rows_buffer: list[tuple[int, dict]] = []
+
     for row_number, row in enumerate(reader, start=2):
         total_rows += 1
+
         if total_rows > MAX_BATCH_ROWS:
             raise HTTPException(
-                400, f"CSV exceeds the maximum of {MAX_BATCH_ROWS} rows."
+                400,
+                f"CSV exceeds the maximum of {MAX_BATCH_ROWS} rows."
             )
 
         text = (row.get(text_column) or "").strip()
+
         if not text:
             failed_rows += 1
             continue
 
-        try:
-            _validate_analysis_text(text=text, current_user=current_user, ip=ip)
-            row_preview = _build_row_preview(text)
-            analysis_request, _analysis_result, _meta, _inference = _persist_analysis(
-                db=db,
-                current_user=current_user,
-                ip=ip,
-                input_type="batch",
-                source_reference=file_name,
-                source_platform=None,
-                text=text,
-                request_metadata={
-                    "source": "batch_upload",
-                    "batch_id": batch_id,
-                    "file_name": file_name,
-                    "row_number": row_number,
-                    "text_column": text_column,
-                    "row_preview": row_preview,
-                },
-                audit_action="batch_upload_analysis",
-            )
-            created_analysis_ids.append(analysis_request.id)
-            processed_rows += 1
-        except HTTPException:
-            failed_rows += 1
+        texts.append(text)
+        rows_buffer.append((row_number, row))
+
+    if texts:
+        results = SentimentService.analyze_batch(texts)
+
+        for (row_number, _row), text, _result in zip(rows_buffer, texts, results):
+            try:
+                _validate_analysis_text(
+                    text=text,
+                    current_user=current_user,
+                    ip=ip,
+                )
+
+                row_preview = _build_row_preview(text)
+
+                analysis_request, _analysis_result, _meta, _inference = _persist_analysis(
+                    db=db,
+                    current_user=current_user,
+                    ip=ip,
+                    input_type="batch",
+                    source_reference=file_name,
+                    source_platform=None,
+                    text=text,
+                    request_metadata={
+                        "source": "batch_upload",
+                        "batch_id": batch_id,
+                        "file_name": file_name,
+                        "row_number": row_number,
+                        "text_column": text_column,
+                        "row_preview": row_preview,
+                    },
+                    audit_action="batch_upload_analysis",
+                )
+
+                created_analysis_ids.append(analysis_request.id)
+                processed_rows += 1
+
+            except HTTPException:
+                failed_rows += 1
 
     db.add(
         AuditLog(
